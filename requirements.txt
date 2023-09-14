@@ -1,4 +1,4 @@
 Flask==2.1.1
 requests==2.26.0
-cadquery==1.2.5
+cadquery==2.0
 gunicorn==19.7.1
