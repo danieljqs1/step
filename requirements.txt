@@ -1,4 +1,3 @@
-Flask
-Gunicorn
-cadquery
-requests
+Flask==2.1.1
+requests==2.26.0
+cadquery==2.3.0
