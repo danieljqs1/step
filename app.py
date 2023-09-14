@@ -1,30 +1,48 @@
 from flask import Flask, request, Response
 import requests
 import cadquery as cq
+import tempfile
 
 app = Flask(__name__)
 
-@app.route('/convert_step_to_stl', methods=['GET'])
+@app.route('/convert_step_to_stl', methods=['POST'])
 def convert_step_to_stl():
     try:
-        # Get the URL parameter from the request
-        url = request.args.get('url')
-        # Check if the URL parameter is provided
-        if url is None:
-            return "Please provide a 'url' parameter in the query string.", 400
-        # Fetch the STEP file from the URL using requests
-        response = requests.get(url)
-        # Check if the request was successful
-        if response.status_code == 200:
-            # Read the STEP file using CadQuery
-            cad_part = cq.importers.importStep(response.content)
-            # Convert the CadQuery part to an STL mesh
-            stl_mesh = cad_part.val().exportStlString()
-            # Create a Flask response with the STL content
-            stl_response = Response(stl_mesh, content_type='application/sla')
-            # Set the file name in the Content-Disposition header as an attachment
-            stl_response.headers['Content-Disposition'] = f'attachment; filename={url.split("/")[-1]}.stl'
-            return stl_response
-        return f"Failed to fetch or convert the STEP file from URL: {url}", response.status_code
+        # Check if a file was included in the request
+        if 'file' not in request.files:
+            return "No file provided in the request.", 400
+
+        file = request.files['file']
+
+        # Check if the file has a valid name and extension
+        if file.filename == '':
+            return "No selected file.", 400
+
+        if file:
+            # Create a temporary file to save the uploaded STEP file
+            step_file = tempfile.NamedTemporaryFile(delete=False, suffix=".stp")
+            step_file_path = step_file.name
+            file.save(step_file_path)
+
+            # Load the uploaded STEP file and convert it to a CadQuery object
+            cad_part = cq.importers.importStep(step_file_path)
+
+            # Check if the cad_part is not empty and contains geometry
+            if cad_part:
+                # Export the CadQuery object to STL format
+                stl_file = tempfile.NamedTemporaryFile(delete=False, suffix=".stl")
+                stl_file_path = stl_file.name
+                cad_part.val().exportStl(stl_file_path)
+
+                # Create a Flask response with the STL content
+                stl_response = Response(open(stl_file_path, 'rb').read(), content_type='application/sla')
+                stl_response.headers['Content-Disposition'] = f'attachment; filename=output.stl'
+
+                return stl_response
+            else:
+                # Handle the case where cad_part is empty or invalid
+                return "Invalid or empty CadQuery object.", 400
+        else:
+            return "Failed to process the uploaded file.", 400
     except Exception as e:
         return str(e), 500
