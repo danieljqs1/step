@@ -1,5 +1,4 @@
 Flask==2.1.1
 requests==2.26.0
-cadquery==2.3.0
+cadquery
 gunicorn==21.2.0
-python-occ==7.5.1
